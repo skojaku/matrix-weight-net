@@ -2,14 +2,15 @@
 import numpy as np
 import pandas as pd
 import igraph as ig
+from scipy import sparse
+import numba
 
 # Parameters
 n_nodes = 120
-n_communities = 3
-pin, pout = 0.3, 0.01
-dim = 10
+n_communities = 1
+pin, pout = 0.3, 0.3
 walk_length = 1000
-coherence = 0.2
+theta = 2 * np.pi / n_communities
 
 assert n_nodes % n_communities == 0, "n_nodes must be divisible by n_communities"
 
@@ -24,6 +25,8 @@ g = ig.Graph.SBM(
     directed=False,
 )
 A = g.get_adjacency_sparse()
+membership = np.digitize(np.arange(n_nodes), np.cumsum(block_sizes))
+
 # %% Plot the network
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -32,69 +35,22 @@ sns.heatmap(A.todense())
 plt.show()
 
 # %% Generate random rotation matrix
-import numpy as np
 
 
-def generate_random_rotation_matrix(sz):
-    """Generate a random rotation matrix of size sz x sz using Householder reflections
-
-    Efficient Orthogonal Parametrisation of Recurrent Neural Networks Using Householder Reflections
-    Mhammedi et al. arxiv
-
+def generate_rotation_matrix(theta, dim, ax1=None, ax2=None):
     """
-    weight = np.random.randn((sz * (sz + 1)) // 2)
+    Generate a rotation matrix for a rotation around two axes.
+    """
+    if ax1 is None and ax2 is None:
+        ax12 = np.random.choice(dim, 2, replace=False)
+        ax1, ax2 = ax12
 
-    def rotate_by_householder(v, weight):
-        get_uk = lambda k: weight[
-            (k * (k + 1)) // 2 : (k * (k + 1)) // 2 + k + 1
-        ].reshape(-1, 1)
-
-        def apply_householder(v, uk):
-            k = len(uk)
-            v[-k:] = v[-k:] - 2 * (uk.T @ v[-k:]) * uk / np.linalg.norm(uk) ** 2
-            return v
-
-        for k in range(1, sz):
-            uk = get_uk(k)
-            v = apply_householder(v, uk)
-        return v
-
-    # Create an identity matrix
-    return rotate_by_householder(np.eye(sz), weight)
-
-
-# Sanity check
-R = generate_random_rotation_matrix(dim)
-assert np.all(np.isclose(R.T @ R, np.eye(dim))), "R is not orthonormal"
-
-# Generate a set of random rotations for each pair of communities
-from scipy import sparse
-
-src, trg, _ = sparse.find(sparse.triu(A, 1))
-membership = np.digitize(np.arange(n_nodes), np.cumsum(block_sizes))
-
-com_com_rotation_matrix = {
-    (k, l): generate_random_rotation_matrix(dim)
-    for k in range(n_communities)
-    for l in range(n_communities)
-}
-
-
-def assign_rotation_matrix(src, trg):
-    k, l = membership[src], membership[trg]
-    if np.random.rand() < coherence:
-        if k != l:
-            return com_com_rotation_matrix[(k, l)]
-        else:
-            return np.eye(dim)
-    else:
-        return generate_random_rotation_matrix(dim)
-
-
-RotationMatrix = {(k, l): assign_rotation_matrix(k, l) for k, l in zip(src, trg)}
-
-# %% Generate the random walk sequence
-import numba
+    I = np.eye(dim)
+    I[ax1, ax1] = np.cos(theta)
+    I[ax1, ax2] = -np.sin(theta)
+    I[ax2, ax1] = np.sin(theta)
+    I[ax2, ax2] = np.cos(theta)
+    return I
 
 
 def random_walk(A, n_steps, initial_node):
@@ -112,95 +68,174 @@ def random_walk(A, n_steps, initial_node):
     return _random_walk(A.indptr, A.indices, n_steps, initial_node)
 
 
-node_seq = random_walk(A, walk_length, np.random.randint(n_nodes))
-# %% Compute the trajectory of the walker in the state space
+def assign_rotation_matrix(A, membership, dim, gaussian_noise_std):
+    src, trg, _ = sparse.find(sparse.triu(A, 1))
+    n_communities = len(set(membership))
 
-# Initial random walk position
-x_pos = np.random.randn(dim)
-x_pos = x_pos / np.linalg.norm(x_pos)
+    com_rotation_matrix = {}
+    for k in range(n_communities):
+        for l in range(k, n_communities):
+            ax1, ax2 = np.random.choice(dim, 2, replace=False)
+            com_rotation_matrix[(k, l)] = {
+                "theta": theta,
+                "ax1": ax1,
+                "ax2": ax2,
+                "dim": dim,
+            }
 
-# Convert from the node-level trajectory to the community-level trajectory
-traj = [x_pos.copy()]
-for i in range(walk_length - 1):
-    src, trg = node_seq[i], node_seq[i + 1]
-    if src <= trg:
-        R = RotationMatrix[(src, trg)]
-    else:
-        R = RotationMatrix[(trg, src)]
-        R = R.T
-    x_pos = R @ x_pos
+        ax1, ax2 = np.random.choice(dim, 2, replace=False)
+        com_rotation_matrix[(k, k)] = {
+            "theta": 0,
+            "ax1": ax1,
+            "ax2": ax2,
+            "dim": dim,
+        }
+
+    R = {}
+    for s, t in zip(src, trg):
+        k, l = membership[s], membership[t]
+        k, l = min(k, l), max(k, l)
+        com_rot_params = com_rotation_matrix[(k, l)]
+        com_rot_params["theta"] += np.random.randn() * gaussian_noise_std
+        R[(s, t)] = generate_rotation_matrix(**com_rot_params)
+        R[(t, s)] = R[(s, t)].T
+    return R
+
+
+def run_random_walk(A, dim, RotationMatrix):
+    src, trg, _ = sparse.find(sparse.triu(A, 1))
+
+    # Generate the random walk sequence
+
+    node_seq = random_walk(A, walk_length, np.random.randint(n_nodes))
+    # Compute the trajectory of the walker in the state space
+    x_pos = np.random.randn(dim)
     x_pos = x_pos / np.linalg.norm(x_pos)
-    traj.append(x_pos.copy())
 
-traj = np.vstack(traj)
-# %% Similarity matrix between the trajectory
+    # Convert from the node-level trajectory to the community-level trajectory
+    traj = [x_pos.copy()]
+    for i in range(walk_length - 1):
+        src, trg = node_seq[i], node_seq[i + 1]
+        R = RotationMatrix[(src, trg)]
+        x_pos = R @ x_pos
+        x_pos = x_pos / np.linalg.norm(x_pos)
+        traj.append(x_pos.copy())
+
+    traj = np.vstack(traj)
+    return traj, node_seq
+
+
+def calc_autocorrelation(traj, node_seq):
+    sim_list = []
+    dt_list = []
+
+    for node in set(node_seq):
+        ts = np.where(node_seq == node)[0]
+        _emb = traj[ts]
+        S = _emb @ _emb.T
+        s, t = np.triu_indices(S.shape[0], k=1)
+        sim = S[s, t]
+        dt = ts[t] - ts[s]
+
+        sim_list.append(sim)
+        dt_list.append(dt)
+
+    sim_list = np.concatenate(sim_list)
+    dt_list = np.concatenate(dt_list)
+
+    return pd.DataFrame({"dt": dt_list, "sim": sim_list}).groupby("dt").mean()
+
+
+dim_list = [2, 3, 4, 8, 16, 32]
+gaussian_noise_std_list = [0, 0.01, 0.05, 0.1]
+
+import itertools
+from tqdm import tqdm
+
+results = []
+
+
+for dim, gaussian_noise_std in tqdm(
+    itertools.product(dim_list, gaussian_noise_std_list),
+    total=len(dim_list) * len(gaussian_noise_std_list),
+):
+    RotationMatrix = assign_rotation_matrix(A, membership, dim, gaussian_noise_std)
+    traj, node_seq = run_random_walk(A, dim, RotationMatrix)
+    df = calc_autocorrelation(traj, node_seq)
+    results.append(
+        {
+            "dim": dim,
+            "gaussian_noise_std": gaussian_noise_std,
+            "df": df,
+            "S": traj @ traj.T,
+        }
+    )
+n_results = len(results)
 # %%
-sns.set_style('white')
+
+sns.set_style("white")
 sns.set(font_scale=1.2)
-sns.set_style('ticks')
-cmap = sns.color_palette("colorblind").as_hex()
-row_colors = [cmap[membership[i]] for i in node_seq]
-col_colors = [cmap[membership[i]] for i in node_seq]
+sns.set_style("ticks")
 
-g = sns.clustermap(
-    traj @ traj.T,
-    cmap="coolwarm",
-    center=0,
-    figsize=(7, 7),
-    row_colors=row_colors,
-    col_colors=col_colors,
-    row_cluster=False,
-    col_cluster=False,
-    vmin=-1,
-    vmax=1,
-    cbar_pos=(0, 0.2, 0.03, 0.4),
-)
+fig, axes = plt.subplots(figsize=(30, 20), nrows=6, ncols=4)
 
-# Add colorbar label
-cbar = g.ax_heatmap.collections[0].colorbar
-cbar.set_label("Correlation", rotation=90, labelpad=15)
-
-g.fig.tight_layout()
-g.fig.show()
-# %%
-# %%
-from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
-
-cmap = sns.color_palette("colorblind")
-
-com_seq = membership[node_seq]
-fig, axes = plt.subplots(1, 2, figsize=(12, 6))
-xy = PCA(n_components=2).fit_transform(traj)
-sns.scatterplot(x=xy[:, 0], y=xy[:, 1], hue=com_seq, palette=cmap, ax=axes[0])
-# Add trajectory lines to PCA plot
-for i in range(len(xy) - 1):
-    axes[0].plot(
-        xy[i : i + 2, 0], xy[i : i + 2, 1], color="gray", alpha=0.5, linewidth=0.5
+cbar_ax = fig.add_axes(
+    [1.05, 0.15, 0.02, 0.7]
+)  # Adjusted position for the common colorbar
+for ax, result in zip(axes.ravel(), results):
+    sns.heatmap(
+        result["S"],
+        ax=ax,
+        cmap="coolwarm",
+        center=0,
+        vmin=-1,
+        vmax=1,
+        cbar_ax=cbar_ax if ax == axes[0, 0] else None,
+        cbar=ax == axes[0, 0],
     )
-
-# Add an arrow to show the direction
-arrow_start = xy[-2]
-arrow_end = xy[-1]
-axes[0].annotate(
-    "",
-    xy=arrow_end,
-    xytext=arrow_start,
-    arrowprops=dict(arrowstyle="->", color="red", lw=2),
-)
-
-
-xy = TSNE(n_components=2).fit_transform(traj)
-
-sns.scatterplot(x=xy[:, 0], y=xy[:, 1], hue=com_seq, palette=cmap, ax=axes[1])
-for i in range(len(xy) - 1):
-    axes[1].plot(
-        xy[i : i + 2, 0], xy[i : i + 2, 1], color="gray", alpha=0.5, linewidth=0.5
+    ax.set_title(
+        f"dim: {result['dim']}, gaussian_noise_std: {result['gaussian_noise_std']}"
     )
-plt.tight_layout()
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_xlabel("Time step")
+    ax.set_ylabel("Time step")
 
-axes[0].set_title("PCA")
-axes[1].set_title("t-SNE")
-axes[0].axis("off")
-axes[1].axis("off")
+fig.tight_layout()
+# fig.savefig(output_file, bbox_extra_artists=(lgd,), bbox_inches='tight', dpi=300)
+# %%
+dflist = []
+for result in results:
+    df = result["df"].copy().reset_index()
+    df["dim"] = result["dim"]
+    df["gaussian_noise_std"] = result["gaussian_noise_std"]
+    dflist.append(df)
+df = pd.concat(dflist)
+
+sns.set_style("white")
+sns.set(font_scale=1.2)
+sns.set_style("ticks")
+
+g = (
+    sns.FacetGrid(
+        df,
+        col="dim",
+        hue="gaussian_noise_std",
+        palette="cividis",
+        height=5,
+        aspect=1.0,
+        col_wrap=2,
+        sharex=False,
+        sharey=False,
+    )
+    .map(sns.lineplot, "dt", "sim")
+    .add_legend()
+)
+g.set(xscale="log")
+
+sns.despine()
+
+# %%
+df
+
 # %%
