@@ -301,8 +301,7 @@ def calc_theoretical_results(
     y_star = []
     for c in range(n_communities):
         yc = y_0_bar / n_nodes
-        for ci in range(focal_community, c):
-            yc = com_com_rotation_matrix[(ci, ci + 1)].T.dot(yc)
+        yc = com_com_rotation_matrix[(focal_community, c)].dot(yc)
         y_star.append(yc)
     return y_star
 
@@ -369,22 +368,10 @@ def generate_matrix_weighted_ring_of_sbm(
     # internal edges - identity matrix
     com_com_rotation_matrix = {(l, l): np.eye(dim) for l in range(n_communities)}
     # external edges - first path random
-    com_com_rotation_matrix.update(
-        {
-            (l, l + 1): generate_random_rotation_matrix(k=dim)
-            for l in range(n_communities - 1)
-        }
-    )
-    com_com_rotation_matrix.update(
-        {
-            (l + 1, l): com_com_rotation_matrix[(l, l + 1)].T
-            for l in range(n_communities - 1)
-        }
-    )
-    # external edges - others by existing ones
-    # if n_communities == 2:
-    #    com_com_rotation_matrix[(1, 0)] = com_com_rotation_matrix[0, 1].T
-
+    for l in range(n_communities):
+        R = generate_random_rotation_matrix(k=dim)
+        com_com_rotation_matrix.update({(l, (l + 1) % n_communities): R})
+        com_com_rotation_matrix.update({((l + 1) % n_communities, l): R.T})
     # construct the block weight matrix
     matrix_blocks = [[None for _ in range(n_nodes)] for _ in range(n_nodes)]
 
