@@ -355,6 +355,8 @@ def generate_matrix_weighted_ring_of_sbm(
     for i in range(n_communities - 1):
         pref_matrix[i, i + 1] = pout
         pref_matrix[i + 1, i] = pout
+    pref_matrix[n_communities - 1, 0] = pout
+    pref_matrix[0, n_communities - 1] = pout
     block_sizes = [n_nodes // n_communities] * n_communities
 
     g = nx.stochastic_block_model(block_sizes, pref_matrix, seed=0, directed=False)
