@@ -99,12 +99,18 @@ def assign_rotation_matrix(
     """
     k, l = membership[src], membership[trg]
     if np.random.rand() < coherence:
-        return com_com_rotation_matrix[
-            (k, l)
-        ]  # assign the community to community matrix
-    else:
-        return generate_rotation_noise_matrix(k=dim, noise=noise).dot(
+        return (
             com_com_rotation_matrix[(k, l)]
+            if (k, l) in com_com_rotation_matrix
+            else np.zeros((dim, dim))
+        )  # assign the community to community matrix
+    else:
+        return (
+            generate_rotation_noise_matrix(k=dim, noise=noise).dot(
+                com_com_rotation_matrix[(k, l)]
+            )
+            if (k, l) in com_com_rotation_matrix
+            else np.zeros((dim, dim))
         )
 
 
@@ -294,7 +300,98 @@ def calc_theoretical_results(
     )
     y_star = []
     for c in range(n_communities):
-        y_star.append(
-            com_com_rotation_matrix[(focal_community, c)].T.dot(y_0_bar) / n_nodes
-        )
+        yc = y_0_bar / n_nodes
+        for ci in range(focal_community, c):
+            yc = com_com_rotation_matrix[(ci, ci + 1)].T.dot(yc)
+        y_star.append(yc)
     return y_star
+
+
+def generate_matrix_weighted_ring_of_sbm(
+    n_nodes,
+    n_communities,
+    pin,
+    pout,
+    coherence,
+    noise,
+    dim,
+):
+    """
+    Generate a matrix-weighted ring of SBMs.
+
+    Parameters
+    ----------
+    n_nodes: int
+        Number of nodes.
+    n_communities: int
+        Number of communities.
+    pin: float
+        Probability of intra-community edges.
+    pout: float
+        Probability of inter-community edges.
+    coherence: float
+        Coherence parameter.
+    noise: float
+        Noise parameter.
+    dim: int
+        Dimension of the matrix-weighted SBM.
+
+    Returns
+    -------
+    A_mat: scipy.sparse.csr_matrix
+        Matrix-weighted SBM.
+    A: scipy.sparse.csr_matrix
+        Base network
+    membership: numpy.ndarray
+        Community assignment of each node.
+    com_com_rotation_matrix: dict
+        Rotation matrix for each pair of communities.
+    """
+    assert n_nodes % n_communities == 0, "n_nodes must be divisible by n_communities"
+
+    # Generate a base network using the stochastic block model
+    pref_matrix = np.zeros((n_communities, n_communities))
+    pref_matrix[np.diag_indices_from(pref_matrix)] = pin
+    for i in range(n_communities - 1):
+        pref_matrix[i, i + 1] = pout
+        pref_matrix[i + 1, i] = pout
+    block_sizes = [n_nodes // n_communities] * n_communities
+
+    g = nx.stochastic_block_model(block_sizes, pref_matrix, seed=0, directed=False)
+    A = nx.to_scipy_sparse_array(g)
+
+    src, trg, _ = sparse.find(sparse.triu(A, 1))  # only edges
+    membership = np.digitize(np.arange(n_nodes), np.cumsum(block_sizes))
+
+    # intially balanced configuration
+    # internal edges - identity matrix
+    com_com_rotation_matrix = {(l, l): np.eye(dim) for l in range(n_communities)}
+    # external edges - first path random
+    com_com_rotation_matrix.update(
+        {
+            (l, l + 1): generate_random_rotation_matrix(k=dim)
+            for l in range(n_communities - 1)
+        }
+    )
+    com_com_rotation_matrix.update(
+        {
+            (l + 1, l): com_com_rotation_matrix[(l, l + 1)].T
+            for l in range(n_communities - 1)
+        }
+    )
+    # external edges - others by existing ones
+    # if n_communities == 2:
+    #    com_com_rotation_matrix[(1, 0)] = com_com_rotation_matrix[0, 1].T
+
+    # construct the block weight matrix
+    matrix_blocks = [[None for _ in range(n_nodes)] for _ in range(n_nodes)]
+
+    for k, l in zip(src, trg):
+        rot = assign_rotation_matrix(
+            k, l, membership, com_com_rotation_matrix, coherence, noise, dim
+        )
+        matrix_blocks[k][l] = rot
+        matrix_blocks[l][k] = rot.T
+
+    A_mat = sparse.bmat(matrix_blocks, format="csr")
+    return A_mat, A, membership, com_com_rotation_matrix

@@ -33,14 +33,16 @@ else:
     coherence = 1.0
     output_file = "test_fig.pdf"
 
-A_mat, A, membership, com_com_rotation_matrix = utils.generate_matrix_weighted_sbm(
-    n_nodes=n_nodes,
-    n_communities=n_communities,
-    pin=pin,
-    pout=pout,
-    coherence=coherence,
-    noise=noise,
-    dim=dim,
+A_mat, A, membership, com_com_rotation_matrix = (
+    utils.generate_matrix_weighted_ring_of_sbm(
+        n_nodes=n_nodes,
+        n_communities=n_communities,
+        pin=pin,
+        pout=pout,
+        coherence=coherence,
+        noise=noise,
+        dim=dim,
+    )
 )
 
 # ---------------------------------
@@ -188,7 +190,7 @@ for i in range(n_communities):
 ax.set_xlabel("PC 1")
 ax.set_ylabel("PC 2")
 ax.set_title("Consensus Dynamics")
-ax.legend(title="Community", loc="upper right", fontsize=12, frameon=False)
+ax.legend(title="Community", loc="upper right", fontsize=12, frameon=False).remove()
 sns.despine()
 
 fig.savefig(output_file, bbox_inches="tight")
