@@ -25,7 +25,7 @@ if "snakemake" in sys.modules:
     coherence = float(snakemake.params["coherence"])
     output_file = snakemake.output["output_file"]
 else:
-    n_nodes = 90
+    n_nodes = 100
     n_communities = 3
     pin, pout = 0.3, 0.3
     dim = 5
@@ -33,18 +33,17 @@ else:
     coherence = 1.0
     output_file = "test_fig.pdf"
 
-A_mat, A, membership, com_com_rotation_matrix = (
-    utils.generate_matrix_weighted_ring_of_sbm(
-        n_nodes=n_nodes,
-        n_communities=n_communities,
-        pin=pin,
-        pout=pout,
-        coherence=coherence,
-        noise=noise,
-        dim=dim,
-    )
+A_mat, A, membership, com_com_rotation_matrix = utils.generate_matrix_weighted_sbm(
+    n_nodes=n_nodes,
+    n_communities=n_communities,
+    pin=pin,
+    pout=pout,
+    coherence=coherence,
+    noise=noise,
+    dim=dim,
 )
 
+# %%
 # ---------------------------------
 # Initialzie node characteristics
 # ---------------------------------
@@ -76,24 +75,30 @@ degree = np.array(A.sum(axis=1)).reshape(-1)
 D_mat = sparse.diags(np.repeat(degree, dim))
 L_mat = D_mat - A_mat  # Laplacian matrix
 
-ts = [0.01, 0.05, 0.1, 0.5, 1, 5, 10, 20, 50]
+ts = [0.08, 0.1, 0.25, 0.5, 1, 2, 4, 8, 16, 32]
 res = [(expm(-L_mat * t) @ y_0).toarray().reshape(n_nodes, dim) for t in ts]
 node_states = np.swapaxes(np.array(res), 0, 1)  # shape = (node x time x dim)
-node_states.shape
 # %% Identify the principal components of the node states
 from sklearn.decomposition import PCA
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+
 X = np.vstack([node_states[:, t, :] for t in range(node_states.shape[1])])
-pca = PCA(n_components=2).fit(X)
+
+t_train_min = 5
+X_train = np.vstack(
+    [node_states[:, t, :] for t in range(t_train_min, node_states.shape[1])]
+)
+
+# Use TruncatedSVD as a more robust alternative to PCA
+pca = PCA(n_components=3).fit(X_train)
 xy = pca.transform(X)
 node_states_2d = np.array(
     [pca.transform(node_states[:, t, :]) for t in range(node_states.shape[1])]
 )
 node_states_2d = np.swapaxes(node_states_2d, 0, 1)
-
-y_star_2d = pca.transform(y_star)
+y_star_2d = pca.transform(np.array(y_star))
 
 plot_data = pd.DataFrame(
     {
@@ -104,7 +109,7 @@ plot_data = pd.DataFrame(
         "membership": np.repeat(membership, len(ts)),
     }
 )
-# %%
+
 sns.set_style("white")
 sns.set(font_scale=1.2)
 sns.set_style("ticks")
@@ -131,7 +136,7 @@ for t in range(len(ts) - 1):
         head_width = head_length * 0.8  # Adjusted head width
 
         # Calculate the margin to avoid overlap
-        margin = 0.015  # Adjust this value to increase/decrease the margin
+        margin = 0.005  # Adjust this value to increase/decrease the margin
         start_x = node_states_2d[i, t, 0] + margin * dx / arrow_length
         start_y = node_states_2d[i, t, 1] + margin * dy / arrow_length
         end_x = node_states_2d[i, t + 1, 0] - margin * dx / arrow_length
@@ -152,15 +157,30 @@ for t in range(len(ts) - 1):
             ),
         )
 
-cmap_nodes = sns.color_palette(desat=0.3)
-cmap_star = sns.color_palette("bright")
+# Create a colorblind-friendly palette with muted and bright tones
+# Use a colorblind-friendly palette
+palette = sns.color_palette("colorblind")
+palette_bright = sns.color_palette("bright")
 
-cmap_nodes[2] = cmap_nodes[1]
-cmap_nodes[0] = cmap_nodes[-1]
-cmap_nodes[1] = cmap_nodes[-4]
-cmap_star[2] = cmap_star[1]
-cmap_star[0] = cmap_star[-1]
-cmap_star[1] = cmap_star[-4]
+# Muted colors for nodes
+cmap_nodes = [
+    sns.desaturate(palette[6], 0.5),  # Blue
+    sns.desaturate(palette[1], 0.5),  # Orange
+    sns.desaturate(palette[2], 0.5),  # Red
+    sns.desaturate(palette[3], 0.5),  # Purple
+]
+
+# Bright colors for stars (slightly brighter versions of node colors)
+cmap_star = [
+    palette_bright[6],  # Brighter blue
+    palette_bright[1],  # Brighter orange
+    palette_bright[2],  # Brighter red
+    palette_bright[3],  # Brighter purple
+]
+
+# Ensure we have enough colors for all communities
+cmap_nodes = cmap_nodes[:n_communities]
+cmap_star = cmap_star[:n_communities]
 
 ax = sns.scatterplot(
     data=plot_data.query("node_id in @sampled_nodes"),

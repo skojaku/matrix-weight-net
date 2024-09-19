@@ -99,18 +99,11 @@ def assign_rotation_matrix(
     """
     k, l = membership[src], membership[trg]
     if np.random.rand() < coherence:
-        return (
-            com_com_rotation_matrix[(k, l)]
-            if (k, l) in com_com_rotation_matrix
-            else np.zeros((dim, dim))
-        )  # assign the community to community matrix
+        return com_com_rotation_matrix[(k, l)]
+        # assign the community to community matrix
     else:
-        return (
-            generate_rotation_noise_matrix(k=dim, noise=noise).dot(
-                com_com_rotation_matrix[(k, l)]
-            )
-            if (k, l) in com_com_rotation_matrix
-            else np.zeros((dim, dim))
+        return generate_rotation_noise_matrix(k=dim, noise=noise).dot(
+            com_com_rotation_matrix[(k, l)]
         )
 
 
@@ -170,24 +163,22 @@ def generate_matrix_weighted_sbm(
     # intially balanced configuration
     # internal edges - identity matrix
     com_com_rotation_matrix = {(l, l): np.eye(dim) for l in range(n_communities)}
-    # external edges - first path random
-    com_com_rotation_matrix.update(
-        {
-            (l, k): generate_random_rotation_matrix(k=dim)
-            for l in range(n_communities)
-            for k in range(l + 1, n_communities)
-        }
-    )
-    com_com_rotation_matrix.update(
-        {
-            (k, l): com_com_rotation_matrix[(l, k)].T
-            for l in range(n_communities)
-            for k in range(l + 1, n_communities)
-        }
-    )
-    # external edges - others by existing ones
-    # if n_communities == 2:
-    #    com_com_rotation_matrix[(1, 0)] = com_com_rotation_matrix[0, 1].T
+
+    # Generate a random rotation matrix R
+    R = generate_random_rotation_matrix(k=dim)
+
+    def matrix_power(R, k):
+        if k == 1:
+            return R
+        else:
+            return R @ matrix_power(R, k - 1)
+
+    for l in range(n_communities):
+        for k in range(l + 1, n_communities):
+            Rk = matrix_power(R, k - l)
+            com_com_rotation_matrix.update({(l, k): Rk})
+            com_com_rotation_matrix.update({(k, l): Rk.T})
+            print(l, k)
 
     # construct the block weight matrix
     matrix_blocks = [[None for _ in range(n_nodes)] for _ in range(n_nodes)]
@@ -300,8 +291,7 @@ def calc_theoretical_results(
     )
     y_star = []
     for c in range(n_communities):
-        yc = y_0_bar / n_nodes
-        yc = com_com_rotation_matrix[(focal_community, c)].dot(yc)
+        yc = com_com_rotation_matrix[(focal_community, c)].T.dot(y_0_bar) / n_nodes
         y_star.append(yc)
     return y_star
 
