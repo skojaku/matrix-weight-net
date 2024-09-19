@@ -5,10 +5,10 @@ dim = [2, 3, 5, 10]
 pin = [0.3]
 pout = [0.3]
 #noise = [0, 0.1]
-noise = [0.1, 0]
+noise = [0.1, 0, 0.3]
 coherence = [1, 0.8]
 #coherence = [1]
-n_communities = [2,3, 4]
+n_communities = [2,3]
 
 FIG_CONS_DYN = "figs/cons-dyn-n_nodes~{n_nodes}-n_communities~{n_communities}-dim~{dim}-pin~{pin}-pout~{pout}-noise~{noise}-coherence~{coherence}.pdf"
 
