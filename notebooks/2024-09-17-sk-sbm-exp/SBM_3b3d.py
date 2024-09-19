@@ -92,7 +92,7 @@ X_train = np.vstack(
 )
 
 # Use TruncatedSVD as a more robust alternative to PCA
-pca = PCA(n_components=3).fit(X_train)
+pca = PCA(n_components=2).fit(X_train)
 xy = pca.transform(X)
 node_states_2d = np.array(
     [pca.transform(node_states[:, t, :]) for t in range(node_states.shape[1])]
