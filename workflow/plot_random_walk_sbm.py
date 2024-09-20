@@ -165,8 +165,8 @@ xmin, xmax = xmin - (xmax - xmin) * 0.01, xmax + (xmax - xmin) * 0.01
 ymin, ymax = ymin - (ymax - ymin) * 0.01, ymax + (ymax - ymin) * 0.01
 ax.set_xlim(xmin, xmax)
 ax.set_ylim(ymin, ymax)
-ax.set_xlabel("PC 1")
-ax.set_ylabel("PC 2")
+# ax.set_xlabel("PC 1")
+# ax.set_ylabel("PC 2")
 # ax.set_title("Random Walk")
 ax.legend(title="Community", loc="upper right", fontsize=12, frameon=False).remove()
 sns.despine()

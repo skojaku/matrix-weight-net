@@ -148,9 +148,9 @@ for i in range(n_communities):
         edgecolor="k",
     )
 
-ax.set_xlabel("PC 1")
-ax.set_ylabel("PC 2")
-ax.set_title("Consensus Dynamics")
+# ax.set_xlabel("PC 1")
+# ax.set_ylabel("PC 2")
+# ax.set_title("Consensus Dynamics")
 ax.legend(title="Community", loc="upper right", fontsize=12, frameon=False).remove()
 sns.despine()
 
