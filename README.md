@@ -1,71 +1,63 @@
-# Project template
+# Matrix-Weighted Networks
 
-A simple template for research project repos. Also check out [data science and
-reproducible science cookie
-cutters](https://github.com/audreyr/cookiecutter#data-science).
-
-## Installation
-
-Run the following
-
-    ./install.sh YOUR_PROJECT_REPO_FOLDER
-
-This script creates the following folders and files. 
-
-1. `libs` for a software library for the project.
-1. `data` for datasets and scripts for downloading datasets.
-1. `exps` for timestamped experiments.
-1. `paper` for manuscripts.
-1. `workflow` for workflow scripts.
-1. `.gitignore` that lists temporary and binary files to ignore (LaTeX, Python, Jupyter, data files, etc. )
-
-## Set up
+## Data
 
 
-### Miniforge
+## Paper
+- [arXiv](...)
 
-- [GitHub - conda-forge/miniforge: A conda-forge distribution.](https://github.com/conda-forge/miniforge)
+```
+Yu Tian, Sadamori Kojaku, Hiroki Sayama, Renaud Lambiotte. "Matrix-Weighted Networks", ...
+```
 
-Miniforge is preferred over conda because Miniforge comes with mamba and conda-forge is the default channel.
+To cite our work, please use the following BibTeX entry:
+```bibtex
+@article{Tian2024MatrixWeightedNetworks,
+        title        = {Matrix-Weighted Networks},
+        author       = {Yu Tian and Sadamori Kojaku and Hiroki Sayama and Renaud Lambiotte},
+        year         = 2024,
+        publisher    = {{arXiv}},
+        number       = {arXiv:...},
+        eprint       = {arXiv:...},
+        archiveprefix = {arxiv},
+}
+```
 
+## Reproducing Our Results
 
-### Setting up the virtual environment 
+### Setup
 
-First create a virtual environment for the project.
+1. Set up the virtual environment and install the required packages:
+```bash
+conda create -n matnet python=3.10
+conda activate matnet
+conda install -c conda-forge mamba -y
+mamba install -y -c bioconda -c conda-forge snakemake -y
+mamba install -c conda-forge graph-tool scikit-learn numpy==1.23.5 numba scipy pandas networkx seaborn matplotlib ipykernel tqdm black -y
+```
 
-    mamba create -n project_env_name python=3.7
-    mamba activate project_env_name
-
-Install `ipykernel` for Jupyter and `snakemake` for workflow management. 
-
-    mamba install -y -c bioconda -c conda-forge snakemake ipykernel numpy pandas scipy matplotlib seaborn tqdm austin
-
-Create a kernel for the virtual environment that you can use in Jupyter lab/notebook.
-
-    python -m ipykernel install --user --name project_env_kernel_name
-
-
-### Git pre-commit
+2. Install the in-house packages
 
 ```bash
-conda install -y -c conda-forge pre-commit
-pre-commit install
+cd libs/matnet && pip install -e .
 ```
 
-
-### Snakemake setting 
-
-```bash 
-mkdir -p ~/.config/snakemake/default 
-```
-and create `~/.config/snakemake/default/config.yaml`:
+4. Create a file `config.yaml` with the following content and place it under the `workflow` folder:
 ```yaml
-# non-slurm profile defaults
-keep-going: True
-rerun-triggers: mtime
+data_dir: "data/"
+fig_dir: "figs/"
 ```
 
-and add the following to .zshrc or .bashrc file
-```bash 
-export SNAKEMAKE_PROFILE=default
+Note that the script will generate over 1T byte of data under this `data/` folder. Make sure you have sufficient disk space.
+
+### Run Simulation
+
+Run the following command to execute the `Snakemake` workflow:
+```bash
+snakemake --cores 24 all
 ```
+This will generate all files needed to produce the figures. Then, run
+```bash
+snakemake --cores 24 figs
+```
+You can change the number of cores to use, instead of 24.
