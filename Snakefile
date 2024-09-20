@@ -12,6 +12,11 @@ include: "workflow/workflow_utils.smk"
 DATA_DIR = config["data_dir"]
 FIG_DIR = config["fig_dir"]
 
+# ------------------------------------------------------------------------------
+# Parameters
+# ------------------------------------------------------------------------------
+
+# Parameters for the consensus dynamics simulations (SBM)
 params_consensus_dynamics = {
     "n_nodes": [120],
     "dim": [2, 3, 5, 10],
@@ -23,7 +28,17 @@ params_consensus_dynamics = {
 }
 paramspace_consensus_dynamics = to_paramspace(params_consensus_dynamics)
 
+# ------------------------------------------------------------------------------
+# Results
+# ------------------------------------------------------------------------------
+# Results for the consensus dynamics simulations (SBM)
 RES_CONS_DYN = j(DATA_DIR, "consensus-dynamics", f"sbm-{paramspace_consensus_dynamics.wildcard_pattern}.npz")
+
+
+# ------------------------------------------------------------------------------
+# Figures
+# ------------------------------------------------------------------------------
+# Figures for the consensus dynamics simulations (SBM)
 FIG_CONS_DYN = j(FIG_DIR, "consensus-dynamics", f"sbm-{paramspace_consensus_dynamics.wildcard_pattern}.pdf")
 
 rule all:
