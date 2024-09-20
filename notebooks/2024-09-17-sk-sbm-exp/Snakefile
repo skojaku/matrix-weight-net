@@ -1,0 +1,32 @@
+from os.path import join as j
+
+n_nodes = [90]
+dim = [2, 3, 5, 10]
+pin = [0.3]
+pout = [0.1, 0.3]
+#noise = [0, 0.1]
+noise = [0.1, 0, 0.3]
+coherence = [1, 0.8]
+#coherence = [1]
+n_communities = [2,3, 4]
+
+FIG_CONS_DYN = "figs/cons-dyn-n_nodes~{n_nodes}-n_communities~{n_communities}-dim~{dim}-pin~{pin}-pout~{pout}-noise~{noise}-coherence~{coherence}.pdf"
+
+rule all:
+    input:
+        expand(FIG_CONS_DYN, n_nodes=n_nodes, n_communities=n_communities, dim=dim, pin=pin, pout=pout, noise=noise, coherence=coherence)
+
+rule run_consensus_dynamics:
+    params:
+        n_nodes = lambda wildcards: wildcards.n_nodes,
+        dim = lambda wildcards: wildcards.dim,
+        pin = lambda wildcards: wildcards.pin,
+        pout = lambda wildcards: wildcards.pout,
+        noise = lambda wildcards: wildcards.noise,
+        n_communities = lambda wildcards: wildcards.n_communities,
+        coherence = lambda wildcards: wildcards.coherence
+    output:
+        output_file = FIG_CONS_DYN
+    script:
+        "SBM_3b3d.py"
+
