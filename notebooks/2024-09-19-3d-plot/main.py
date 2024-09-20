@@ -30,10 +30,14 @@ def plot_sphere_trajectory_and_points(Xlist, Y=None, color_palette=plt.cm.viridi
                 linewidth=1,
             )
             ax.quiver(
-                X[i, 0], X[i, 1], X[i, 2],
-                X[i + 1, 0] - X[i, 0], X[i + 1, 1] - X[i, 1], X[i + 1, 2] - X[i, 2],
+                X[i, 0],
+                X[i, 1],
+                X[i, 2],
+                X[i + 1, 0] - X[i, 0],
+                X[i + 1, 1] - X[i, 1],
+                X[i + 1, 2] - X[i, 2],
                 color=color_palette(i / len(X)),
-                arrow_length_ratio=0.08
+                arrow_length_ratio=0.08,
             )
 
     # Plot additional points if Y is provided
@@ -137,7 +141,7 @@ else:
     pin, pout = 0.3, 0.1
     dim = 3
     noise = 0.1
-    coherence = 0.8
+    coherence = 1.0
     output_file = "test_fig.pdf"
 
 A_mat, A, membership, com_com_rotation_matrix = utils.generate_matrix_weighted_sbm(
