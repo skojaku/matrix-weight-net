@@ -1,53 +1,49 @@
 from os.path import join as j
+import numpy as np
+import itertools
+import pandas as pd
+from snakemake.utils import Paramspace
 
 configfile: "workflow/config.yaml"
 
 # Import utilities
-include: "../workflow_utils.smk"
-include: "workflow_utils.smk"
-
-#EMB_DIR = j(DATA_DIR, "{data}", "embeddings")
-#emb_params ={
-#    "directed": ["undirected", "directed"],
-#    "window_length": [10],
-#    "model_name": ["node2vec", "deepwalk", "adjspec", "leigenmap"],
-#    "dim": [64],
-#}
-#emb_params2 ={
-#    "directed": ["undirected", "directed"],
-#    "window_length": [10],
-#    "model_name": ["node2vec", "deepwalk", "adjspec", "leigenmap"],
-#    "dim": [64],
-#}
-#emb_paramspace = to_union_paramspace([emb_params, emb_param2])
-#EMB_FILE = j(EMB_DIR, f"paper_{emb_paramspace.wildcard_pattern}.npz")
-
+include: "workflow/workflow_utils.smk"
 
 DATA_DIR = config["data_dir"]
+FIG_DIR = config["fig_dir"]
 
-PAPER_DIR = config["paper_dir"]
-PAPER_SRC, SUPP_SRC = [j(PAPER_DIR, f) for f in ("main.tex", "supp.tex")]
-PAPER, SUPP = [j(PAPER_DIR, f) for f in ("main.pdf", "supp.pdf")]
+params_consensus_dynamics = {
+    "n_nodes": [120],
+    "dim": [2, 3, 5, 10],
+    "pin": [0.1, 0.3],
+    "pout": [0.1, 0.3],
+    "noise": [0, 0.1, 0.3],
+    "coherence": [1, 0.8],
+    "n_communities": [2, 3, 4]
+}
+paramspace_consensus_dynamics = to_paramspace(params_consensus_dynamics)
+
+RES_CONS_DYN = j(DATA_DIR, "consensus-dynamics", f"sbm-{paramspace_consensus_dynamics.wildcard_pattern}.npz")
+FIG_CONS_DYN = j(FIG_DIR, "consensus-dynamics", f"sbm-{paramspace_consensus_dynamics.wildcard_pattern}.pdf")
 
 rule all:
     input:
-        PAPER, SUPP
+        expand(FIG_CONS_DYN, **params_consensus_dynamics)
 
-rule paper:
-    input:
-        PAPER_SRC, SUPP_SRC
+rule run_consensus_dynamics:
     params:
-        paper_dir = PAPER_DIR
+        params = paramspace_consensus_dynamics.instance
     output:
-        PAPER, SUPP
-    shell:
-        "cd {params.paper_dir}; make"
+        output_file = RES_CONS_DYN
+    script:
+        "workflow/run_consensus_dynamics_sbm.py"
 
 
-# rule some_data_processing:
-    # input:
-        # "data/some_data.csv"
-    # output:
-        # "data/derived/some_derived_data.csv"
-    # script:
-        # "workflow/scripts/process_some_data.py"
+rule plot_consensus_dynamics:
+    input:
+        input_file = RES_CONS_DYN
+    output:
+        output_file = FIG_CONS_DYN
+    script:
+        "workflow/plot_consensus_dynamics_sbm.py"
+
