@@ -178,6 +178,7 @@ def generate_matrix_weighted_sbm(
             Rk = matrix_power(R, k - l)
             com_com_rotation_matrix.update({(l, k): Rk})
             com_com_rotation_matrix.update({(k, l): Rk.T})
+            print(l, k)
 
     # construct the block weight matrix
     matrix_blocks = [[None for _ in range(n_nodes)] for _ in range(n_nodes)]
@@ -229,7 +230,7 @@ def generate_initial_characteristic_vector(nodes, n_nodes, dim):
     return y_0
 
 
-def calc_theoretical_results(
+def calc_theoretical_results_for_consensus_dynamics(
     y_0,
     focal_node,
     membership,
@@ -241,7 +242,7 @@ def calc_theoretical_results(
     dim,
 ):
     """
-    Calculate the theoretical results.
+    Calculate the theoretical results for consensus dynamics.
 
     Parameters
     ----------
@@ -291,6 +292,75 @@ def calc_theoretical_results(
     y_star = []
     for c in range(n_communities):
         yc = com_com_rotation_matrix[(focal_community, c)].T.dot(y_0_bar) / n_nodes
+        y_star.append(yc)
+    return y_star
+
+
+def calc_theoretical_results_for_random_walk(
+    y_0,
+    focal_node,
+    membership,
+    coherence,
+    noise,
+    com_com_rotation_matrix,
+    n_nodes,
+    n_communities,
+    dim,
+    n_edges,
+):
+    """
+    Calculate the theoretical results for consensus dynamics.
+
+    Parameters
+    ----------
+    y_0: scipy.sparse.csc_matrix
+        Initial characteristic vector.
+    focal_node: int
+        Focal node.
+    membership: numpy.ndarray
+        Community assignment of each node.
+    coherence: float
+        Coherence parameter.
+    noise: float
+        Noise parameter.
+    com_com_rotation_matrix: dict
+        Rotation matrix for each pair of communities.
+    n_nodes: int
+        Number of nodes.
+    n_communities: int
+        Number of communities.
+    dim: int
+        Dimension of the matrix-weighted SBM.
+
+    Returns
+    -------
+    y_star: list
+        Theoretical results.
+    """
+    focal_node = 0
+    focal_community = membership[focal_node]
+
+    mat = y_0.toarray().reshape(n_nodes, dim)
+    y_0_bar = np.sum(
+        [
+            assign_rotation_matrix(
+                src=focal_node,
+                trg=k,
+                membership=membership,
+                com_com_rotation_matrix=com_com_rotation_matrix,
+                coherence=coherence,
+                noise=noise,
+                dim=dim,
+            ).dot(mat[k, :])
+            for k in range(n_nodes)
+        ],
+        axis=0,
+    )
+    y_star = []
+    for c in range(n_communities):
+        yc = com_com_rotation_matrix[(focal_community, c)].T.dot(y_0_bar) / (
+            2 * n_edges
+        )
         y_star.append(yc)
     return y_star
 

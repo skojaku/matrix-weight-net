@@ -17,7 +17,7 @@ FIG_DIR = config["fig_dir"]
 # ------------------------------------------------------------------------------
 
 # Parameters for the consensus dynamics simulations (SBM)
-params_consensus_dynamics = {
+params_matrix_weighted_sbm = {
     "n_nodes": [120],
     "dim": [2, 3, 5, 10],
     "pin": [0.1, 0.3],
@@ -26,28 +26,30 @@ params_consensus_dynamics = {
     "coherence": [1, 0.8],
     "n_communities": [2, 3, 4]
 }
-paramspace_consensus_dynamics = to_paramspace(params_consensus_dynamics)
+paramspace_matrix_weighted_sbm = to_paramspace(params_matrix_weighted_sbm)
 
 # ------------------------------------------------------------------------------
 # Results
 # ------------------------------------------------------------------------------
 # Results for the consensus dynamics simulations (SBM)
-RES_CONS_DYN = j(DATA_DIR, "consensus-dynamics", f"sbm-{paramspace_consensus_dynamics.wildcard_pattern}.npz")
-
+RES_CONS_DYN = j(DATA_DIR, "consensus-dynamics", f"sbm-{paramspace_matrix_weighted_sbm.wildcard_pattern}.npz")
+RES_RANDOM_WALK = j(DATA_DIR, "random-walk", f"sbm-{paramspace_matrix_weighted_sbm.wildcard_pattern}.npz")
 
 # ------------------------------------------------------------------------------
 # Figures
 # ------------------------------------------------------------------------------
 # Figures for the consensus dynamics simulations (SBM)
-FIG_CONS_DYN = j(FIG_DIR, "consensus-dynamics", f"sbm-{paramspace_consensus_dynamics.wildcard_pattern}.pdf")
+FIG_CONS_DYN = j(FIG_DIR, "consensus-dynamics", f"sbm-{paramspace_matrix_weighted_sbm.wildcard_pattern}.pdf")
+FIG_RANDOM_WALK = j(FIG_DIR, "random-walk", f"sbm-{paramspace_matrix_weighted_sbm.wildcard_pattern}.pdf")
 
 rule all:
     input:
-        expand(FIG_CONS_DYN, **params_consensus_dynamics)
+        expand(FIG_CONS_DYN, **params_matrix_weighted_sbm),
+        expand(FIG_RANDOM_WALK, **params_matrix_weighted_sbm)
 
 rule run_consensus_dynamics:
     params:
-        params = paramspace_consensus_dynamics.instance
+        params = paramspace_matrix_weighted_sbm.instance
     output:
         output_file = RES_CONS_DYN
     script:
@@ -61,4 +63,22 @@ rule plot_consensus_dynamics:
         output_file = FIG_CONS_DYN
     script:
         "workflow/plot_consensus_dynamics_sbm.py"
+
+
+rule run_random_walk:
+    params:
+        params = paramspace_matrix_weighted_sbm.instance
+    output:
+        output_file = RES_RANDOM_WALK
+    script:
+        "workflow/run_random_walk_sbm.py"
+
+
+rule plot_random_walk:
+    input:
+        input_file = RES_RANDOM_WALK
+    output:
+        output_file = FIG_RANDOM_WALK
+    script:
+        "workflow/plot_random_walk_sbm.py"
 

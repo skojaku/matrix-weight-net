@@ -60,7 +60,7 @@ y_0 = utils.generate_initial_characteristic_vector(
 # Consensus Dynamics
 # ---------------------------------
 # Theoretical results
-y_star = utils.calc_theoretical_results(
+y_star = utils.calc_theoretical_results_for_consensus_dynamics(
     y_0=y_0,
     focal_node=0,
     membership=membership,
