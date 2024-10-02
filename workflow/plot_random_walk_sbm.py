@@ -1,5 +1,5 @@
 """
-This script plots the consensus dynamics of the SBM.
+This script plots the random walk dynamics of the SBM.
 """
 
 # %%
@@ -14,7 +14,7 @@ if "snakemake" in sys.modules:
     input_file = snakemake.input["input_file"]
     output_file = snakemake.output["output_file"]
 else:
-    input_file = "/home/skojaku/projects/matrix-weight-net/data/random-walk/sbm-n_nodes~120_dim~2_pin~0.1_pout~0.1_noise~0_coherence~0.8_n_communities~3.npz"
+    input_file = "/home/skojaku/projects/matrix-weight-net/data/random-walk/sbm-n_nodes~120_dim~2_pin~0.3_pout~0.3_noise~0.1_coherence~1_n_communities~3.npz"
     output_file = "test_fig.pdf"
 
 data = np.load(input_file)
@@ -42,7 +42,7 @@ membership_train = np.array(
 
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
-if len(np.unique(membership_train)) > 2:
+if len(np.unique(membership_train)) <= 2:
     pca = PCA(n_components=2).fit(X_train)
 else:
     pca = LinearDiscriminantAnalysis(n_components=2)
@@ -127,42 +127,54 @@ for t in range(t_min + 1, len(ts) - 1):
 
 # Create a colorblind-friendly palette with muted and bright tones
 # Use a colorblind-friendly palette
-palette = sns.color_palette("colorblind")
+palette = sns.color_palette("muted")
 palette_bright = sns.color_palette("bright")
 
 # Muted colors for nodes
 cmap_nodes = [
-    sns.desaturate(palette[6], 0.5),  # Blue
-    sns.desaturate(palette[1], 0.5),  # Orange
-    sns.desaturate(palette[2], 0.5),  # Red
-    sns.desaturate(palette[3], 0.5),  # Purple
+    sns.desaturate(palette[0], 1.0),  # Blue
+    sns.desaturate(palette[1], 1.0),  # Orange
+    sns.desaturate(palette[3], 1.0),  # Red
+    sns.desaturate(palette[3], 1.0),  # Purple
 ]
 
 # Bright colors for stars (slightly brighter versions of node colors)
 cmap_star = [
-    palette_bright[6],  # Brighter blue
+    palette_bright[0],  # Brighter blue
     palette_bright[1],  # Brighter orange
-    palette_bright[2],  # Brighter red
+    palette_bright[3],  # Brighter red
     palette_bright[3],  # Brighter purple
 ]
 
 # Ensure we have enough colors for all communities
 cmap_nodes = cmap_nodes[:n_communities]
 cmap_star = cmap_star[:n_communities]
+df = plot_data.query("node_id in @sampled_nodes")
 
-ax = sns.scatterplot(
-    data=plot_data.query("node_id in @sampled_nodes"),
-    x="x",
-    y="y",
-    hue="membership",
-    palette=cmap_nodes[:n_communities],
-    ax=ax,
-    style="membership",
-    markers=["o", "s", "D", "X"],
-    edgecolor="k",
-    s=50,
-    zorder=10,
-)
+# Calculate percentile ranks for timestamps
+df["t_percentile"] = df["t"].rank(pct=True)
+
+# Plot each timestamp separately with increasing desaturation
+for t in sorted(df["t"].unique()):
+    df_t = df[df["t"] == t]
+    saturation = np.minimum(
+        1.0, 10 * np.power(df_t["t_percentile"].iloc[0], 1.4)
+    )  # Use percentile for saturation
+    ax = sns.scatterplot(
+        data=df_t,
+        x="x",
+        y="y",
+        hue="membership",
+        palette=[
+            sns.desaturate(color, saturation) for color in cmap_nodes[:n_communities]
+        ],
+        ax=ax,
+        style="membership",
+        markers=["o", "s", "D", "X"],
+        edgecolor="#6d6d6d",
+        s=50,
+        zorder=10,
+    )
 
 for i in range(n_communities):
     # Calculate the direction vector
@@ -175,12 +187,15 @@ for i in range(n_communities):
         linewidth=2,
         zorder=0,
     )
-xmin, xmax = plot_data["x"].min(), plot_data["x"].max()
-ymin, ymax = plot_data["y"].min(), plot_data["y"].max()
-xmin, xmax = xmin - (xmax - xmin) * 0.01, xmax + (xmax - xmin) * 0.01
-ymin, ymax = ymin - (ymax - ymin) * 0.01, ymax + (ymax - ymin) * 0.01
+xmin, xmax = df["x"].min(), df["x"].max()
+ymin, ymax = df["y"].min(), df["y"].max()
+xmin, xmax = xmin - (xmax - xmin) * 0.01, xmin + (xmax - xmin) * 1.01
+ymin, ymax = ymin - (ymax - ymin) * 0.01, ymin + (ymax - ymin) * 1.01
+ymin = np.minimum(ymin, -0.001)
+xmin = np.minimum(xmin, -0.001)
 ax.set_xlim(xmin, xmax)
 ax.set_ylim(ymin, ymax)
+
 ax.set_xlabel("")
 ax.set_ylabel("")
 # ax.set_title("Random Walk")

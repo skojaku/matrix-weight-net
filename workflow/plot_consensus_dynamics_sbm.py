@@ -2,6 +2,7 @@
 This script plots the consensus dynamics of the SBM.
 """
 
+# %%
 import numpy as np
 import pandas as pd
 import igraph as ig
@@ -15,7 +16,7 @@ if "snakemake" in sys.modules:
     input_file = snakemake.input["input_file"]
     output_file = snakemake.output["output_file"]
 else:
-    input_file = "data/test_fig.npz"
+    input_file = "/home/skojaku/projects/matrix-weight-net/data/consensus-dynamics/sbm-n_nodes~120_dim~2_pin~0.3_pout~0.3_noise~0.1_coherence~1_n_communities~3.npz"
     output_file = "test_fig.pdf"
 
 data = np.load(input_file)
@@ -23,6 +24,13 @@ node_states = data["node_states"]
 y_star = data["y_star"]
 membership = data["membership"]
 ts = data["ts"]
+
+node_states.shape, ts.shape
+min_t = 3e-2
+slice = ts > min_t
+node_states = node_states[:, slice, :]
+ts = ts[slice]
+
 
 n_nodes = len(membership)
 n_communities = len(np.unique(membership))
@@ -37,7 +45,7 @@ membership_train = np.array([membership for t in range(node_states.shape[1])]).r
 
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
-if len(np.unique(membership_train)) > 2:
+if len(np.unique(membership_train)) <= 10:
     pca = PCA(n_components=2).fit(X)
 else:
     pca = LinearDiscriminantAnalysis(n_components=2)
@@ -112,42 +120,55 @@ for t in range(len(ts) - 1):
 
 # Create a colorblind-friendly palette with muted and bright tones
 # Use a colorblind-friendly palette
-palette = sns.color_palette("colorblind")
+palette = sns.color_palette("muted")
 palette_bright = sns.color_palette("bright")
 
 # Muted colors for nodes
 cmap_nodes = [
-    sns.desaturate(palette[6], 0.5),  # Blue
-    sns.desaturate(palette[1], 0.5),  # Orange
-    sns.desaturate(palette[2], 0.5),  # Red
-    sns.desaturate(palette[3], 0.5),  # Purple
+    sns.desaturate(palette[0], 1.0),  # Blue
+    sns.desaturate(palette[1], 1.0),  # Orange
+    sns.desaturate(palette[3], 1.0),  # Red
+    sns.desaturate(palette[3], 1.0),  # Purple
 ]
 
 # Bright colors for stars (slightly brighter versions of node colors)
 cmap_star = [
-    palette_bright[6],  # Brighter blue
+    palette_bright[0],  # Brighter blue
     palette_bright[1],  # Brighter orange
-    palette_bright[2],  # Brighter red
+    palette_bright[3],  # Brighter red
     palette_bright[3],  # Brighter purple
 ]
 
 # Ensure we have enough colors for all communities
 cmap_nodes = cmap_nodes[:n_communities]
 cmap_star = cmap_star[:n_communities]
+df = plot_data.query("node_id in @sampled_nodes")
 
-ax = sns.scatterplot(
-    data=plot_data.query("node_id in @sampled_nodes"),
-    x="x",
-    y="y",
-    hue="membership",
-    palette=cmap_nodes[:n_communities],
-    ax=ax,
-    style="membership",
-    markers=["o", "s", "D", "X"],
-    edgecolor="#6d6d6d",
-    s=50,
-    zorder=10,
-)
+# Calculate percentile ranks for timestamps
+df["t_percentile"] = df["t"].rank(pct=True)
+
+# Plot each timestamp separately with increasing desaturation
+for t in sorted(df["t"].unique()):
+    df_t = df[df["t"] == t]
+    saturation = np.minimum(
+        1.0, 10 * np.power(df_t["t_percentile"].iloc[0], 1.4)
+    )  # Use percentile for saturation
+    # satulation = np.sqrt(saturation)
+    ax = sns.scatterplot(
+        data=df_t,
+        x="x",
+        y="y",
+        hue="membership",
+        palette=[
+            sns.desaturate(color, saturation) for color in cmap_nodes[:n_communities]
+        ],
+        ax=ax,
+        style="membership",
+        markers=["o", "s", "D", "X"],
+        edgecolor="#6d6d6d",
+        s=50,
+        zorder=10,
+    )
 
 for i in range(n_communities):
     ax.scatter(
@@ -167,3 +188,5 @@ ax.legend(title="Community", loc="upper right", fontsize=12, frameon=False).remo
 sns.despine()
 
 fig.savefig(output_file, bbox_inches="tight")
+
+# %%

@@ -19,12 +19,12 @@ FIG_DIR = config["fig_dir"]
 # Parameters for the consensus dynamics simulations (SBM)
 params_matrix_weighted_sbm = {
     "n_nodes": [120],
-    "dim": [2, 3, 5, 10],
-    "pin": [0.1, 0.3],
-    "pout": [0.1, 0.3],
-    "noise": [0, 0.1, 0.3],
+    "dim": [2, 3,  10],
+    "pin": [0.3],
+    "pout": [0.3],
+    "noise": [0.1],
     "coherence": [1, 0.8],
-    "n_communities": [2, 3, 4]
+    "n_communities": [1, 2, 3]
 }
 paramspace_matrix_weighted_sbm = to_paramspace(params_matrix_weighted_sbm)
 
