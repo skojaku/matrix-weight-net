@@ -33,7 +33,19 @@ n_communities = len(np.unique(membership))
 X = np.vstack([node_states[:, t, :] for t in range(node_states.shape[1])])
 
 # Use TruncatedSVD as a more robust alternative to PCA
-pca = PCA(n_components=2).fit(X)
+membership_train = np.array([membership for t in range(node_states.shape[1])]).ravel()
+
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+
+if len(np.unique(membership_train)) > 2:
+    pca = PCA(n_components=2).fit(X)
+else:
+    pca = LinearDiscriminantAnalysis(n_components=2)
+    pca = pca.fit(
+        X,
+        membership_train,
+    )
+
 xy = pca.transform(X)
 node_states_2d = np.array(
     [pca.transform(node_states[:, t, :]) for t in range(node_states.shape[1])]
@@ -52,7 +64,7 @@ plot_data = pd.DataFrame(
 )
 
 sns.set_style("white")
-sns.set(font_scale=1.2)
+sns.set(font_scale=1.8)
 sns.set_style("ticks")
 
 fig, ax = plt.subplots(figsize=(6, 6))

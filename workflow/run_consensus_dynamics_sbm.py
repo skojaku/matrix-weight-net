@@ -77,7 +77,7 @@ degree = np.array(A.sum(axis=1)).reshape(-1)
 D_mat = sparse.diags(np.repeat(degree, dim))
 L_mat = D_mat - A_mat  # Laplacian matrix
 
-ts = [0.08, 0.1, 0.25, 0.5, 1, 2, 4, 8, 16, 32]
+ts = np.linspace(0, 32, 50)
 res = [(expm(-L_mat * t) @ y_0).toarray().reshape(n_nodes, dim) for t in ts]
 node_states = np.swapaxes(np.array(res), 0, 1)  # shape = (node x time x dim)
 

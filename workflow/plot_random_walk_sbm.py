@@ -2,6 +2,7 @@
 This script plots the consensus dynamics of the SBM.
 """
 
+# %%
 from sklearn.decomposition import PCA
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -13,7 +14,7 @@ if "snakemake" in sys.modules:
     input_file = snakemake.input["input_file"]
     output_file = snakemake.output["output_file"]
 else:
-    input_file = "data/test_fig.npz"
+    input_file = "/home/skojaku/projects/matrix-weight-net/data/random-walk/sbm-n_nodes~120_dim~2_pin~0.1_pout~0.1_noise~0_coherence~0.8_n_communities~3.npz"
     output_file = "test_fig.pdf"
 
 data = np.load(input_file)
@@ -35,9 +36,24 @@ t_train_min = t_min
 X_train = np.vstack(
     [node_states[:, t, :] for t in range(t_train_min, node_states.shape[1])]
 )
+membership_train = np.array(
+    [membership for t in range(t_train_min, node_states.shape[1])]
+).ravel()
 
-# Use TruncatedSVD as a more robust alternative to PCA
-pca = PCA(n_components=2).fit(X_train)
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+
+if len(np.unique(membership_train)) > 2:
+    pca = PCA(n_components=2).fit(X_train)
+else:
+    pca = LinearDiscriminantAnalysis(n_components=2)
+    pca = pca.fit(
+        X_train,
+        membership_train,
+    )
+
+
+# %%
+# pca = PCA(n_components=2).fit(X_train)
 x0 = pca.transform(np.zeros((1, dim)))
 xy = pca.transform(X) - np.ones((X.shape[0], 1)) @ x0
 
@@ -63,7 +79,7 @@ plot_data = pd.DataFrame(
 plot_data = plot_data.query("t > @t_min")
 
 sns.set_style("white")
-sns.set(font_scale=1.2)
+sns.set(font_scale=1.8)
 sns.set_style("ticks")
 
 fig, ax = plt.subplots(figsize=(6, 6))
@@ -172,3 +188,5 @@ ax.legend(title="Community", loc="upper right", fontsize=12, frameon=False).remo
 sns.despine()
 
 fig.savefig(output_file, bbox_inches="tight")
+
+# %%
