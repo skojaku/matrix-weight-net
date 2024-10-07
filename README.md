@@ -6,14 +6,10 @@
 ## Paper
 - [arXiv](...)
 
-```
-Yu Tian, Sadamori Kojaku, Hiroki Sayama, Renaud Lambiotte. "Matrix-Weighted Networks", ...
-```
-
 To cite our work, please use the following BibTeX entry:
 ```bibtex
 @article{Tian2024MatrixWeightedNetworks,
-        title        = {Matrix-Weighted Networks},
+        title        = {Matrix-weighted networks for modeling multidimensional dynamics},
         author       = {Yu Tian and Sadamori Kojaku and Hiroki Sayama and Renaud Lambiotte},
         year         = 2024,
         publisher    = {{arXiv}},
@@ -47,8 +43,6 @@ cd libs/matnet && pip install -e .
 data_dir: "data/"
 fig_dir: "figs/"
 ```
-
-Note that the script will generate over 1T byte of data under this `data/` folder. Make sure you have sufficient disk space.
 
 ### Run Simulation
 
