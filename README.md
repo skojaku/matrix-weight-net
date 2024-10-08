@@ -32,13 +32,7 @@ mamba install -y -c bioconda -c conda-forge snakemake -y
 mamba install -c conda-forge graph-tool scikit-learn numpy==1.23.5 numba scipy pandas networkx seaborn matplotlib ipykernel tqdm black -y
 ```
 
-2. Install the in-house packages
-
-```bash
-cd libs/matnet && pip install -e .
-```
-
-4. Create a file `config.yaml` with the following content and place it under the `workflow` folder:
+2. Create a file `config.yaml` with the following content and place it under the `workflow` folder:
 ```yaml
 data_dir: "data/"
 fig_dir: "figs/"
