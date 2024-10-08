@@ -1,7 +1,7 @@
 # Matrix-Weighted Networks
 
-- [Data](https://drive.google.com/drive/folders/1tptfbIBAlyO12O3dvFMStsz8NBTKo9Nc?usp=drive_link)
-- [Fig](https://drive.google.com/drive/folders/1htAwu0tlJHD1BfpMdNmUcHdWIPS0yO53?usp=drive_link)
+- [Data](https://drive.google.com/drive/folders/1_DZEIUtMn-m-C9ub1EzMyZPd9m2F8tsx?usp=sharing)
+- [Fig](https://drive.google.com/drive/folders/1tcMWxp7pGWC95DWVJBVAFcNC5IFLgxgx?usp=sharing)
 
 ## Paper
 - [arXiv](https://arxiv.org/abs/2410.05188)
