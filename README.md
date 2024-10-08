@@ -4,17 +4,17 @@
 - [Fig](https://drive.google.com/drive/folders/1htAwu0tlJHD1BfpMdNmUcHdWIPS0yO53?usp=drive_link)
 
 ## Paper
-- [arXiv](...)
+- [arXiv](https://arxiv.org/abs/2410.05188)
 
 To cite our work, please use the following BibTeX entry:
 ```bibtex
-@article{Tian2024MatrixWeightedNetworks,
+@article{tian2024matrix,
         title        = {Matrix-weighted networks for modeling multidimensional dynamics},
         author       = {Yu Tian and Sadamori Kojaku and Hiroki Sayama and Renaud Lambiotte},
         year         = 2024,
         publisher    = {{arXiv}},
-        number       = {arXiv:...},
-        eprint       = {arXiv:...},
+        number       = {arXiv:2410.05188},
+        eprint       = {arXiv:2410.05188},
         archiveprefix = {arxiv},
 }
 ```
